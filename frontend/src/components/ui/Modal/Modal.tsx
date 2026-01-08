@@ -66,7 +66,8 @@ export function Modal({
       document.body.style.overflow = '';
       previousActiveElement.current?.focus();
     };
-  }, [isOpen, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
