@@ -1,0 +1,94 @@
+services:
+
+  mongodb:
+    image: mongo:8.2.3
+    container_name: ${COMPOSE_PROJECT_NAME}-mongodb
+    restart: unless-stopped
+    ports:
+      - '${MONGODB_PORT}:27017'
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=memes
+    networks:
+      - meme-gallery-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/memes --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}-backend
+    restart: unless-stopped
+    ports:
+      - '${BACKEND_PORT}:3001'
+    environment:
+      - PORT=3001
+      - NODE_ENV=${NODE_ENV}
+      - MONGODB_URI=${MONGODB_URI}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - IMGFLIP_API_URL=${IMGFLIP_API_URL}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - meme-gallery-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}-frontend
+    restart: unless-stopped
+    ports:
+      - '${FRONTEND_PORT}:3000'
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - meme-gallery-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: ${COMPOSE_PROJECT_NAME}-mongo-express
+    restart: unless-stopped
+    ports:
+      - '${MONGO_EXPRESS_PORT}:8081'
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=${ME_CONFIG_MONGODB_SERVER}
+      - ME_CONFIG_MONGODB_PORT=${ME_CONFIG_MONGODB_PORT}
+      - ME_CONFIG_BASICAUTH_USERNAME=${ME_CONFIG_BASICAUTH_USERNAME}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${ME_CONFIG_BASICAUTH_PASSWORD}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - meme-gallery-network
+
+networks:
+  meme-gallery-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
