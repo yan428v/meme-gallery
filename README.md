@@ -1,4 +1,6 @@
-# Meme Gallery
+# Live Demo: [http://18.222.201.44:3000](http://18.222.201.44:3000)
+
+## Meme Gallery
 
 A full-stack web application for browsing and editing memes with infinite scroll.
 
